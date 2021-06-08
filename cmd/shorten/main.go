@@ -38,6 +38,14 @@ func main() {
 	shortener := shorten.NewURLShortener(store)
 
 	http.HandleFunc("/v1/shorten", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Println(r.URL.Path)
+			fmt.Fprintln(w, "/v1/shorten: wrong method", r.Method)
+			log.Println("/v1/shorten: wrong method", r.Method)
+			return
+		}
+
 		var args ShortenArgs
 
 		dec := json.NewDecoder(r.Body)

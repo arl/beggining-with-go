@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/arl/shorten"
 )
 
 // ShortenArgs holds the arguments to the /shorten endpoint.
@@ -32,6 +34,9 @@ func main() {
 	flag.StringVar(&addrFlag, "addr", ":8080", "server listen address")
 	flag.Parse()
 
+	store := shorten.NewMemoryStore()
+	shortener := shorten.NewURLShortener(store)
+
 	http.HandleFunc("/v1/shorten", func(w http.ResponseWriter, r *http.Request) {
 		var args ShortenArgs
 
@@ -51,7 +56,8 @@ func main() {
 			return
 		}
 
-		fmt.Fprintln(w, "shortening", args.LongURL)
+		shortURL := shortener.Shorten(args.LongURL)
+		fmt.Fprintln(w, shortURL)
 	})
 
 	if err := http.ListenAndServe(addrFlag, nil); err != nil {

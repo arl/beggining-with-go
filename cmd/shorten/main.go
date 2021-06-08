@@ -49,12 +49,22 @@ func (s *server) routes() {
 	s.router.HandleFunc("/", s.handleIndex)
 }
 
+// failMsg writes sets the HTTP header, writes an error message into w and log it.
+func failMsg(w http.ResponseWriter, r *http.Request, code int, format string, args ...interface{}) {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, r.URL.Path)
+	sb.WriteByte(' ')
+	fmt.Fprintf(&sb, format, args...)
+
+	w.WriteHeader(code)
+	fmt.Fprintln(w, sb.String())
+	log.Println(sb.String())
+}
+
 func (s *server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Println(r.URL.Path)
-		fmt.Fprintln(w, "/v1/shorten: wrong method", r.Method)
-		log.Println("/v1/shorten: wrong method", r.Method)
+		failMsg(w, r, http.StatusMethodNotAllowed, "wrong method %q", r.Method)
 		return
 	}
 
@@ -63,16 +73,12 @@ func (s *server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&args); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "/v1/shorten: invalid json:", err)
-		log.Println("/v1/shorten: invalid json:", err)
+		failMsg(w, r, http.StatusBadRequest, "invalid json %v", err)
 		return
 	}
 
 	if err := args.validate(); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, "/v1/shorten: failed arg validation:", err)
-		log.Println("/v1/shorten: failed arg validation:", err)
+		failMsg(w, r, http.StatusBadRequest, "failed arg validation %v", err)
 		return
 	}
 
@@ -84,9 +90,7 @@ func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	shortURL := strings.TrimPrefix(r.URL.Path, "/")
 	longURL, ok := s.shortener.Long(shortURL)
 	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintln(w, r.URL.Path, "not found")
-		log.Println(r.URL.Path, "not found")
+		failMsg(w, r, http.StatusNotFound, "not found")
 		return
 	}
 

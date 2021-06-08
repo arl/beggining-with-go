@@ -79,7 +79,8 @@ func main() {
 			return
 		}
 
-		fmt.Println("redirecting to", longURL)
+		log.Println(r.URL.Path, "redirecting to", longURL)
+		http.Redirect(w, r, longURL, http.StatusMovedPermanently)
 	})
 
 	if err := http.ListenAndServe(addrFlag, nil); err != nil {

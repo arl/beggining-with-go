@@ -11,29 +11,67 @@ import (
 )
 
 func TestShortenAndRedirect(t *testing.T) {
-	s := newServer(shorten.NewMemoryStore())
-
-	// Call /v1/shorten with an URL.
 	const url = "https://blog.golang.org/vscode-go"
-	reqBody := `{"long_url": "` + url + `"}`
-	req := httptest.NewRequest("POST", "http://myserver/v1/shorten", strings.NewReader(reqBody))
-	w := httptest.NewRecorder()
 
-	s.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("/v1/shorten %v want HTTP 200, got %d", reqBody, w.Code)
+	tests := []struct {
+		name string
+		body string
+		want int
+	}{
+		{
+			name: "shorten+redirect",
+			body: `{"long_url": "` + url + `"}`,
+			want: http.StatusOK,
+		},
+
+		// error cases
+		{
+			name: "empty url",
+			body: `{"long_url": ""}`,
+			want: http.StatusBadRequest,
+		},
+		{
+			name: "malformed url",
+			body: `{"long_url": ":/::"}`,
+			want: http.StatusBadRequest,
+		},
+		{
+			name: "invalid body",
+			body: `{"long_url": "`,
+			want: http.StatusBadRequest,
+		},
 	}
 
-	resp := w.Result()
-	respBody, _ := io.ReadAll(resp.Body)
-	shortURL := strings.TrimSpace(string(respBody))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	// Call the shortened URL.
-	req = httptest.NewRequest("GET", "http://myserver.com/"+shortURL, nil)
-	w = httptest.NewRecorder()
+			s := newServer(shorten.NewMemoryStore())
 
-	s.ServeHTTP(w, req)
-	if w.Code != http.StatusMovedPermanently {
-		t.Errorf("/v1/shorten %v want HTTP 301, got %d", reqBody, w.Code)
+			// Call /v1/shorten with an URL.
+			req := httptest.NewRequest("POST", "http://myserver/v1/shorten", strings.NewReader(tt.body))
+			w := httptest.NewRecorder()
+
+			s.ServeHTTP(w, req)
+			if w.Code != tt.want {
+				t.Fatalf("/v1/shorten want HTTP %d, got %d", tt.want, w.Code)
+			}
+
+			if w.Code != http.StatusOK {
+				return
+			}
+
+			resp := w.Result()
+			respBody, _ := io.ReadAll(resp.Body)
+			shortURL := strings.TrimSpace(string(respBody))
+
+			// Call the shortened URL.
+			req = httptest.NewRequest("GET", "http://myserver.com/"+shortURL, nil)
+			w = httptest.NewRecorder()
+
+			s.ServeHTTP(w, req)
+			if w.Code != http.StatusMovedPermanently {
+				t.Errorf("/v1/shorten want HTTP 301, got %d", w.Code)
+			}
+		})
 	}
 }

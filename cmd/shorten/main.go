@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/arl/shorten"
 )
@@ -66,6 +67,19 @@ func main() {
 
 		shortURL := shortener.Shorten(args.LongURL)
 		fmt.Fprintln(w, shortURL)
+	})
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		shortURL := strings.TrimPrefix(r.URL.Path, "/")
+		longURL, ok := shortener.Long(shortURL)
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintln(w, r.URL.Path, "not found")
+			log.Println(r.URL.Path, "not found")
+			return
+		}
+
+		fmt.Println("redirecting to", longURL)
 	})
 
 	if err := http.ListenAndServe(addrFlag, nil); err != nil {

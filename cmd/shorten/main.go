@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -31,8 +32,26 @@ func main() {
 	flag.StringVar(&addrFlag, "addr", ":8080", "server listen address")
 	flag.Parse()
 
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello world!")
+	http.HandleFunc("/v1/shorten", func(w http.ResponseWriter, r *http.Request) {
+		var args ShortenArgs
+
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&args); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintln(w, "/v1/shorten: invalid json:", err)
+			log.Println("/v1/shorten: invalid json:", err)
+			return
+		}
+
+		if err := args.validate(); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintln(w, "/v1/shorten: failed arg validation:", err)
+			log.Println("/v1/shorten: failed arg validation:", err)
+			return
+		}
+
+		fmt.Fprintln(w, "shortening", args.LongURL)
 	})
 
 	if err := http.ListenAndServe(addrFlag, nil); err != nil {

@@ -30,13 +30,24 @@ func (s *ShortenArgs) validate() error {
 	return nil
 }
 
+type server struct {
+	shortener *shorten.URLShortener
+}
+
+func newServer(store shorten.Store) *server {
+	s := &server{
+		shortener: shorten.NewURLShortener(store),
+	}
+
+	return s
+}
+
 func main() {
 	addrFlag := ""
 	flag.StringVar(&addrFlag, "addr", ":8080", "server listen address")
 	flag.Parse()
 
-	store := shorten.NewMemoryStore()
-	shortener := shorten.NewURLShortener(store)
+	s := newServer(shorten.NewMemoryStore())
 
 	http.HandleFunc("/v1/shorten", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -65,13 +76,13 @@ func main() {
 			return
 		}
 
-		shortURL := shortener.Shorten(args.LongURL)
+		shortURL := s.shortener.Shorten(args.LongURL)
 		fmt.Fprintln(w, shortURL)
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
-		longURL, ok := shortener.Long(shortURL)
+		longURL, ok := s.shortener.Long(shortURL)
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintln(w, r.URL.Path, "not found")

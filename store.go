@@ -63,3 +63,15 @@ func (s *MemoryStore) Load(key uint64) (value string, ok bool) {
 	value, ok = s.m[key]
 	return value, ok
 }
+
+// ForEach calls f for each key-value pair.
+func (s *MemoryStore) ForEach(f StoreForEachFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for k, v := range s.m {
+		if !f(k, v) {
+			break
+		}
+	}
+}

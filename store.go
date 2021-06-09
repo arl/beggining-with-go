@@ -13,7 +13,14 @@ type Store interface {
 
 	// Load loads the value associated with a key (or false if it doesn't exist).
 	Load(key uint64) (value string, ok bool)
+
+	// ForEach calls f for each key-value pair.
+	ForEach(f StoreForEachFunc)
 }
+
+// ForEachFunc is called with each key-value pairs in a Store, returns false to
+// stop iteration.
+type StoreForEachFunc func(key uint64, value string) bool
 
 // MemoryStore is a concurrent-safe in-memory key-value store.
 type MemoryStore struct {

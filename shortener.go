@@ -1,6 +1,8 @@
 package shorten
 
 import (
+	"encoding/json"
+	"io"
 	"log"
 
 	"github.com/jxskiss/base62"
@@ -31,4 +33,25 @@ func (s *URLShortener) Long(short string) (string, bool) {
 	}
 
 	return s.s.Load(uint64(key))
+}
+
+type urlPair struct {
+	Short string `json:"short_url"`
+	Long  string `json:"long_url"`
+}
+
+type urlList struct {
+	URLS []urlPair `json:"urls"`
+}
+
+func (s *URLShortener) WriteJSON(w io.Writer) error {
+	urls := make([]urlPair, 0)
+
+	s.s.ForEach(func(key uint64, value string) bool {
+		urls = append(urls, urlPair{Short: string(base62.FormatUint(key)), Long: value})
+		return true
+	})
+
+	enc := json.NewEncoder(w)
+	return enc.Encode(urlList{URLS: urls})
 }

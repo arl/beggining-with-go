@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -28,4 +29,9 @@ func main() {
 	signal.Notify(ch, os.Interrupt)
 	<-ch
 	log.Println("quitting...")
+
+	stats := s.statistics()
+	fmt.Println("statistics:")
+	fmt.Println("shortened:", stats.Shortened)
+	fmt.Println("redirects:", stats.Redirected)
 }

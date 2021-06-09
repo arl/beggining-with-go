@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 
 	"github.com/arl/shorten"
 )
@@ -32,6 +33,7 @@ func (s *ShortenArgs) validate() error {
 type server struct {
 	shortener *shorten.URLShortener
 	router    *http.ServeMux
+	stats     stats
 }
 
 func newServer(store shorten.Store) *server {
@@ -83,6 +85,8 @@ func (s *server) handleShorten(w http.ResponseWriter, r *http.Request) {
 
 	shortURL := s.shortener.Shorten(args.LongURL)
 	fmt.Fprintln(w, shortURL)
+
+	atomic.AddUint64(&s.stats.Shortened, 1)
 }
 
 func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +99,19 @@ func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(r.URL.Path, "redirecting to", longURL)
 	http.Redirect(w, r, longURL, http.StatusMovedPermanently)
+
+	atomic.AddUint64(&s.stats.Redirected, 1)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
+}
+
+type stats struct {
+	Shortened  uint64
+	Redirected uint64
+}
+
+func (s *server) statistics() stats {
+	return s.stats
 }
